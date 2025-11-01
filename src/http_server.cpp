@@ -1,10 +1,12 @@
 // src/http_server.cpp
 #include "sensors/http_server.hpp"
+#include <atomic> // для счётчиков метрик
 #include <boost/beast.hpp>
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
+
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -13,6 +15,13 @@ using tcp = net::ip::tcp;
 using json = nlohmann::json;
 
 namespace sensors {
+
+// --- декларации глобальных счётчиков метрик ---
+// Определим их на следующем шаге (в одном .cpp), здесь только объявляем.
+// g_total_received: сколько метрик успешно записали в ClickHouse (counter)
+// g_queue_size: текущий размер очереди задач (gauge, приблизительный)
+extern std::atomic<unsigned long long> g_total_received;
+extern std::atomic<unsigned long long> g_queue_size;
 
 struct HttpServer::Session
     : public std::enable_shared_from_this<HttpServer::Session> {
@@ -52,6 +61,28 @@ struct HttpServer::Session
   }
 
   void handle_request() {
+    // --- Prometheus /metrics ---
+    if (req.method() == http::verb::get && req.target() == "/metrics") {
+      std::ostringstream os;
+
+      // gauge: текущий размер очереди
+      os << "# HELP cpp_sensors_queue_size Current queue size\n";
+      os << "# TYPE cpp_sensors_queue_size gauge\n";
+      os << "cpp_sensors_queue_size "
+         << g_queue_size.load(std::memory_order_relaxed) << "\n";
+
+      // counter: сколько всего успешно записали пар key/value
+      os << "# HELP cpp_sensors_total_received Total successfully written "
+            "metrics\n";
+      os << "# TYPE cpp_sensors_total_received counter\n";
+      os << "cpp_sensors_total_received "
+         << g_total_received.load(std::memory_order_relaxed) << "\n";
+
+      write_response(200, os.str(), "text/plain; version=0.0.4");
+      return;
+    }
+
+    // --- основной ingest ---
     if (req.method() != http::verb::post || req.target() != "/ingest") {
       write_response(404, R"({"error":"not found"})");
       return;
@@ -93,6 +124,9 @@ struct HttpServer::Session
       return;
     }
 
+    // Увеличим gauge очереди — элемент принят в обработку
+    g_queue_size.fetch_add(1ULL, std::memory_order_relaxed);
+
     auto self = shared_from_this();
     auto timer =
         std::make_shared<net::steady_timer>(strand.get_inner_executor());
@@ -109,11 +143,13 @@ struct HttpServer::Session
     // write_response/dispatch
   }
 
-  void write_response(int status, std::string body) {
+  // перегрузка для явной установки content-type
+  void write_response(int status, std::string body,
+                      const std::string &content_type) {
     res.version(req.version());
     res.keep_alive(false);
     res.result(static_cast<http::status>(status));
-    res.set(http::field::content_type, "application/json");
+    res.set(http::field::content_type, content_type);
     res.body() = std::move(body);
     res.prepare_payload();
 
@@ -124,6 +160,11 @@ struct HttpServer::Session
           beast::error_code ec;
           self->socket.shutdown(tcp::socket::shutdown_send, ec);
         }));
+  }
+
+  void write_response(int status, std::string body) {
+    // по умолчанию JSON
+    write_response(status, std::move(body), "application/json");
   }
 };
 

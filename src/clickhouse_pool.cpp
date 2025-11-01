@@ -1,5 +1,6 @@
 #include "sensors/clickhouse_pool.hpp"
-
+#include "sensors/time_utils.hpp"
+#include <atomic> // добавлено для метрик
 #include <boost/thread.hpp>
 #include <chrono>
 #include <clickhouse/client.h>
@@ -11,9 +12,16 @@
 #include <string>
 #include <thread>
 
+
 using namespace clickhouse;
+using sensors::to_time_t_seconds;
 
 namespace sensors {
+
+// глобальные счётчики метрик, определяются в одном .cpp (например,
+// src/metrics_export.cpp)
+extern std::atomic<unsigned long long> g_total_received; // counter
+extern std::atomic<unsigned long long> g_queue_size;     // gauge
 
 namespace {
 
@@ -25,17 +33,6 @@ inline void log_err(const char *tag, const std::string &msg) {
 inline void log_dbg(const char *tag, const std::string &msg) {
   std::fprintf(stderr, "[%s] %s\n", tag, msg.c_str());
   std::fflush(stderr);
-}
-
-// Приводим ts к секундам (UTC)
-inline std::time_t to_time_t_seconds(int64_t ts) {
-  if (ts > 10'000'000'000LL) {
-    if (ts > 10'000'000'000'000LL) {
-      return static_cast<std::time_t>(ts / 1'000'000); // микросекунды
-    }
-    return static_cast<std::time_t>(ts / 1'000); // миллисекунды
-  }
-  return static_cast<std::time_t>(ts); // секунды
 }
 
 inline void sleep_with_checks(std::atomic_bool &running,
@@ -133,6 +130,9 @@ void ClickHousePool::worker_loop() {
           continue;
         }
 
+        // элемент извлечён из очереди → уменьшаем gauge
+        g_queue_size.fetch_sub(1ULL, std::memory_order_relaxed);
+
         const auto &t = *item_opt;
 
         try {
@@ -155,6 +155,11 @@ void ClickHousePool::worker_loop() {
           block.AppendColumn("value", col_value);
 
           client.Insert(table, block);
+
+          // успешная вставка: увеличиваем counter на количество пар key/value
+          g_total_received.fetch_add(
+              static_cast<unsigned long long>(t.kv.size()),
+              std::memory_order_relaxed);
 
           if (t.reply && t.reply->respond) {
             t.reply->respond(200, R"({"status":"ok"})");
