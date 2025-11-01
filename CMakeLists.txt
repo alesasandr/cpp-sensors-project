@@ -124,3 +124,24 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     ${CMAKE_CURRENT_SOURCE_DIR}/config/server.json
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/server.json
 )
+
+
+# Gtest + unit tests
+find_package(GTest CONFIG REQUIRED)
+
+enable_testing()
+
+add_executable(unit_tests
+  tests/test_time.cpp
+)
+
+target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(unit_tests
+  PRIVATE
+    project_options
+    GTest::gtest
+    GTest::gtest_main
+)
+
+add_test(NAME unit_tests COMMAND unit_tests)
