@@ -1,0 +1,17 @@
+{
+    "cmake.configurePreset": "windows-msvc",
+    "cmake.buildPreset": "windows-msvc",
+    "cmake.configureOnOpen": true,
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--compile-commands-dir=out/build/windows-release",
+        "--background-index",
+        "--header-insertion=never",
+        "-j=8"
+    ],
+    "cmake.configureArgs": [
+        "-DCMAKE_VS_GLOBALS=PreferredUILang=en-US",
+        "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL",
+        "-DCMAKE_CXX_FLAGS=/utf-8"
+    ],
+}
