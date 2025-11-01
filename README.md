@@ -88,21 +88,9 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8080/ingest" `
 docker exec -it ch clickhouse-client -u default --password chpass \
   -q "SELECT sensor_id, ts, key, value FROM sensors.metrics ORDER BY ts DESC LIMIT 5 FORMAT PrettyCompactMonoBlock"
 
-🧠 Архитектура
-        +-----------+        +--------------------+
-        | Sensors   |  -->   | cpp-sensors-project|
-        |  (curl)   |        |  HTTP /ingest      |
-        +-----------+        +---------+----------+
-                                       |
-                                       v
-                           +----------------------+
-                           |  ClickHouse (native) |
-                           +----------------------+
-
-
 HTTP-часть построена на Boost.Beast
 
-Асинхронная очередь — thread-safe реализация на std::mutex + std::condition_variable
+Асинхронная очередь — thread-safe реализация на mutex + condition_variable
 
 Пул потоков ClickHouse использует clickhouse::Client из официальной библиотеки
 
