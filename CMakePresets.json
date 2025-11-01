@@ -1,0 +1,39 @@
+{
+    "version": 5,
+    "configurePresets": [
+        {
+            "name": "windows-msvc",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/out/build/msvc",
+            "architecture": {
+                "value": "x64"
+            },
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "C:/dev/tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-windows"
+            }
+        },
+        {
+            "name": "windows-ninja",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/windows-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "C:/dev/tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-windows",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "windows-msvc",
+            "configurePreset": "windows-msvc",
+            "configuration": "Release"
+        },
+        {
+            "name": "windows-ninja",
+            "configurePreset": "windows-ninja"
+        }
+    ]
+}

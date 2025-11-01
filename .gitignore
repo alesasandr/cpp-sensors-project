@@ -1,1 +1,30 @@
-build/
+# Build dirs
+/out/
+/build/
+/Release/
+/Debug/
+/x64/
+/CMakeFiles/
+/CMakeScripts/
+CMakeCache.txt
+cmake_install.cmake
+*.vcxproj*
+*.sln
+*.user
+*.log
+
+# Binaries / artifacts
+*.exe
+*.dll
+*.lib
+*.exp
+*.ilk
+*.pdb
+*.obj
+
+# Local config
+config/server.json
+
+# IDE
+.vscode/
+.idea/
