@@ -26,6 +26,10 @@ struct Config {
   std::string ch_password = "";
   std::string ch_database = "sensors";
   std::string ch_table = "metrics";
+
+  bool redis_enabled{false};
+  std::string redis_host{"127.0.0.1"};
+  int redis_port{6379};
 };
 
 } // namespace sensors

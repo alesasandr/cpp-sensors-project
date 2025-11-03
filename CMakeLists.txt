@@ -43,6 +43,9 @@ find_package(lz4  CONFIG REQUIRED)      # => lz4::lz4
 find_package(zstd CONFIG REQUIRED)      # => zstd::libzstd
 find_package(absl CONFIG REQUIRED)      # => absl::int128 (и при надобности absl::base)
 
+# Redis client (redis-plus-plus)
+find_package(redis++ CONFIG REQUIRED)
+
 # CityHash встречается по-разному — попробуем все варианты
 find_package(cityhash CONFIG QUIET)
 set(_CITYHASH_CANDIDATES
@@ -91,6 +94,7 @@ target_link_libraries(${PROJECT_NAME}
     zstd::libzstd
     ${CITYHASH_TARGET}
     absl::int128
+    redis++::redis++ 
 )
 
 # ClickHouse: либо нормальная цель, либо .lib из installed

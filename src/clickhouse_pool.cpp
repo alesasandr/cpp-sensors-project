@@ -1,5 +1,8 @@
 #include "sensors/clickhouse_pool.hpp"
+#include "sensors/redis_client.hpp"
 #include "sensors/time_utils.hpp"
+
+
 #include <atomic> // добавлено для метрик
 #include <boost/thread.hpp>
 #include <chrono>
@@ -11,7 +14,6 @@
 #include <memory>
 #include <string>
 #include <thread>
-
 
 using namespace clickhouse;
 using sensors::to_time_t_seconds;
@@ -120,6 +122,13 @@ void ClickHousePool::worker_loop() {
                                  ping_ex.what());
       }
 
+      // Настройка Redis для этого воркера (опционально)
+      RedisConfig rcfg;
+      rcfg.redis_enabled = cfg_.redis_enabled;
+      rcfg.redis_host = cfg_.redis_host;
+      rcfg.redis_port = cfg_.redis_port;
+      RedisClient redis_client(rcfg);
+
       // Основной цикл обработки очереди
       while (running_) {
         auto item_opt = queue_.pop();
@@ -160,6 +169,14 @@ void ClickHousePool::worker_loop() {
           g_total_received.fetch_add(
               static_cast<unsigned long long>(t.kv.size()),
               std::memory_order_relaxed);
+
+          // обновляем кэш последних значений в Redis (если он включён)
+          if (redis_client.is_enabled()) {
+            for (const auto &kv : t.kv) {
+              redis_client.save_metric(t.sensor_id, kv.first, kv.second,
+                                       static_cast<std::int64_t>(t.ts));
+            }
+          }
 
           if (t.reply && t.reply->respond) {
             t.reply->respond(200, R"({"status":"ok"})");

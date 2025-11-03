@@ -47,6 +47,10 @@ static sensors::Config load_config(const std::string &path) {
   c.ch_password = get("ch_password", c.ch_password);
   c.ch_database = get("ch_database", c.ch_database);
   c.ch_table = get("ch_table", c.ch_table);
+  c.redis_enabled = get("redis_enabled", c.redis_enabled);
+  c.redis_host = get("redis_host", c.redis_host);
+  c.redis_port = get("redis_port", c.redis_port);
+
   return c;
 }
 
